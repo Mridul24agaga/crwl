@@ -3,40 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Scraper API Tester</title>
+    <title>Web Scraper API Documentation</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
+            color: #333;
         }
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 20px;
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .demo-form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
         }
         input, button {
             padding: 10px;
-            font-size: 16px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0051a2;
         }
         #result {
             white-space: pre-wrap;
-            background-color: #f0f0f0;
-            padding: 20px;
+            background: #f4f4f4;
+            padding: 15px;
             border-radius: 5px;
+            margin-top: 20px;
+        }
+        .endpoint {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 6px;
+            background: #28a745;
+            color: white;
+            border-radius: 3px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <h1>Web Scraper API Tester</h1>
-    <form id="scraperForm">
-        <input type="url" id="url" required placeholder="Enter URL to scrape (e.g., https://example.com)">
-        <input type="number" id="maxPages" min="1" max="20" value="5" placeholder="Max pages to scrape">
-        <button type="submit">Scrape</button>
-    </form>
-    <div id="result"></div>
+    <h1>Web Scraper API Documentation</h1>
+    
+    <h2>Endpoint</h2>
+    <div class="endpoint">
+        <span class="method">POST</span> https://dynamic-pegasus-0130a0.netlify.app/api/crawl
+    </div>
+
+    <h2>Request Format</h2>
+    <pre>
+{
+    "url": "https://example.com",
+    "max_pages": 5  // Optional, defaults to 10
+}</pre>
+
+    <h2>Response Format</h2>
+    <pre>
+[
+    {
+        "metadata": {
+            "url": "https://example.com",
+            "title": "Page Title",
+            "meta_description": "Page description"
+        },
+        "sections": {
+            "header": {
+                "navigation": [...],
+                "text": "Header text"
+            },
+            "hero": {
+                "title": "Hero title",
+                "description": "Hero description",
+                "buttons": [...]
+            },
+            // Other sections...
+        }
+    }
+]</pre>
+
+    <h2>Example Usage</h2>
+    <pre>
+fetch('https://dynamic-pegasus-0130a0.netlify.app/api/crawl', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        url: 'https://example.com',
+        max_pages: 5
+    })
+})
+.then(response => response.json())
+.then(data => console.log(data));</pre>
+
+    <h2>Try it out</h2>
+    <div class="demo-form">
+        <form id="scraperForm">
+            <input type="url" id="url" required placeholder="Enter URL to scrape (e.g., https://example.com)">
+            <input type="number" id="maxPages" min="1" max="20" value="5" placeholder="Max pages to scrape">
+            <button type="submit">Test API</button>
+        </form>
+        <div id="result"></div>
+    </div>
 
     <script>
         document.getElementById('scraperForm').addEventListener('submit', async (e) => {
@@ -48,12 +139,15 @@
             resultDiv.textContent = 'Scraping... Please wait.';
 
             try {
-                const response = await fetch('/.netlify/functions/api', {
+                const response = await fetch('https://dynamic-pegasus-0130a0.netlify.app/api/crawl', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url, max_pages: parseInt(maxPages) }),
+                    body: JSON.stringify({ 
+                        url, 
+                        max_pages: parseInt(maxPages) 
+                    }),
                 });
 
                 if (!response.ok) {
@@ -63,7 +157,7 @@
                 const data = await response.json();
                 resultDiv.textContent = JSON.stringify(data, null, 2);
             } catch (error) {
-                resultDiv.textContent = `Error: ${error.message}. Make sure the URL is accessible and includes http:// or https://`;
+                resultDiv.textContent = `Error: ${error.message}\nMake sure:\n1. The URL is accessible\n2. The URL includes http:// or https://\n3. The website allows scraping`;
                 console.error('Error details:', error);
             }
         });

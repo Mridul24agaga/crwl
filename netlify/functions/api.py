@@ -17,6 +17,14 @@ def handler(event, context):
             'body': ''
         }
 
+    # Check if the path is /api/crawl
+    if event['path'] != '/api/crawl':
+        return {
+            'statusCode': 404,
+            'headers': headers,
+            'body': json.dumps({'error': 'Not Found'})
+        }
+
     try:
         body = json.loads(event['body'] if event['body'] else '{}')
         print("Parsed body:", json.dumps(body))
