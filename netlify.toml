@@ -1,10 +1,17 @@
 [build]
-  command = "pip install -r requirements.txt"
+  command = "pip install -r requirements.txt --target netlify/functions/"
   functions = "netlify/functions"
   publish = "public"
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept"
