@@ -10,117 +10,81 @@ class WebCrawlerScraper:
         self.max_pages = max_pages
         self.visited_urls = set()
         self.data = []
-        self.base_domain = urlparse(start_url).netloc
+        # Removed base_domain restriction
 
     def is_valid(self, url):
         parsed = urlparse(url)
-        return bool(parsed.netloc) and bool(parsed.scheme) and parsed.netloc == self.base_domain
+        # Removed domain restriction, now accepts any valid URL
+        return bool(parsed.netloc) and bool(parsed.scheme)
 
     def extract_section_content(self, soup):
-        sections = {}
-        
-        # Extract header content
-        header = soup.find('header') or soup.find(class_=['header', 'nav', 'navbar'])
-        if header:
-            sections['header'] = {
-                'navigation': [{'text': link.get_text(strip=True), 'href': link.get('href')} 
-                             for link in header.find_all('a')],
-                'text': header.get_text(strip=True)
+        try:
+            # Get all text content
+            all_text = soup.get_text(separator=' ', strip=True)
+            
+            # Get all links
+            links = [{'text': a.get_text(strip=True), 'href': a.get('href')} 
+                    for a in soup.find_all('a', href=True)]
+            
+            # Get all images
+            images = [{'src': img.get('src'), 'alt': img.get('alt')} 
+                     for img in soup.find_all('img')]
+            
+            # Get all headings
+            headings = [h.get_text(strip=True) for h in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])]
+            
+            # Get meta tags
+            meta_tags = {
+                meta.get('name', meta.get('property', '')): meta.get('content')
+                for meta in soup.find_all('meta')
+                if meta.get('content')
             }
 
-        # Extract hero/main section
-        hero = soup.find(class_=['hero', 'main-content', 'hero-section']) or soup.find('main')
-        if hero:
-            sections['hero'] = {
-                'title': hero.find(['h1', 'h2']).get_text(strip=True) if hero.find(['h1', 'h2']) else '',
-                'description': hero.find('p').get_text(strip=True) if hero.find('p') else '',
-                'buttons': [{'text': btn.get_text(strip=True), 'href': btn.get('href')} 
-                          for btn in hero.find_all('a', class_=['button', 'btn'])]
+            return {
+                'text_content': all_text,
+                'links': links,
+                'images': images,
+                'headings': headings,
+                'meta_tags': meta_tags
             }
-
-        # Extract all sections with headings
-        for heading in soup.find_all(['h1', 'h2', 'h3']):
-            section = heading.find_parent('section') or heading.find_parent('div')
-            if section:
-                section_id = heading.get_text(strip=True)
-                sections[f'section_{section_id}'] = {
-                    'heading': section_id,
-                    'content': section.get_text(strip=True),
-                    'links': [{'text': link.get_text(strip=True), 'href': link.get('href')} 
-                             for link in section.find_all('a')]
-                }
-
-        # Extract forms
-        forms = soup.find_all('form')
-        if forms:
-            sections['forms'] = [{
-                'action': form.get('action'),
-                'method': form.get('method'),
-                'inputs': [{'type': input.get('type'), 'name': input.get('name')} 
-                          for input in form.find_all('input')]
-            } for form in forms]
-
-        # Extract footer content
-        footer = soup.find('footer')
-        if footer:
-            sections['footer'] = {
-                'text': footer.get_text(strip=True),
-                'links': [{'text': link.get_text(strip=True), 'href': link.get('href')} 
-                         for link in footer.find_all('a')]
-            }
-
-        return sections
+        except Exception as e:
+            print(f"Error extracting content: {str(e)}")
+            return {}
 
     def crawl_and_scrape(self):
-        queue = [self.start_url]
-        
-        while queue and len(self.visited_urls) < self.max_pages:
-            url = queue.pop(0)
+        try:
+            response = requests.get(
+                self.start_url,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Cache-Control': 'max-age=0'
+                },
+                timeout=30,
+                verify=False  # Ignore SSL certificate verification
+            )
             
-            if url not in self.visited_urls:
-                try:
-                    print(f"Crawling: {url}")
-                    response = requests.get(url, headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    })
-                    
-                    if response.status_code == 200:
-                        self.visited_urls.add(url)
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        
-                        # Extract metadata
-                        metadata = {
-                            'url': url,
-                            'title': soup.title.string if soup.title else "No title",
-                            'meta_description': soup.find('meta', {'name': 'description'})['content'] 
-                                if soup.find('meta', {'name': 'description'}) else "",
-                        }
-                        
-                        # Extract all sections
-                        sections = self.extract_section_content(soup)
-                        
-                        # Combine metadata and sections
-                        page_data = {
-                            'metadata': metadata,
-                            'sections': sections
-                        }
-                        
-                        self.data.append(page_data)
-                        
-                        # Find all internal links
-                        for link in soup.find_all('a', href=True):
-                            new_url = urljoin(url, link['href'])
-                            if self.is_valid(new_url) and new_url not in self.visited_urls:
-                                queue.append(new_url)
-                        
-                        time.sleep(2)  # Respectful delay between requests
-                        
-                except Exception as e:
-                    print(f"Error crawling {url}: {str(e)}")
+            soup = BeautifulSoup(response.text, 'html.parser')
             
+            # Extract data
+            page_data = {
+                'url': self.start_url,
+                'title': soup.title.string if soup.title else '',
+                'content': self.extract_section_content(soup)
+            }
+            
+            self.data.append(page_data)
+            
+        except Exception as e:
+            print(f"Error crawling {self.start_url}: {str(e)}")
+            self.data.append({
+                'url': self.start_url,
+                'error': str(e)
+            })
+    
     def get_data(self):
         return self.data
-
-    def save_to_json(self, filename='crawled_data.json'):
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
